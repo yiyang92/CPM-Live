@@ -20,7 +20,6 @@ from .ant import CPMAntConfig
 
 class CPMAntPlus(bmt.DistributedModule):
     def __init__(self, config: CPMAntConfig):
-
         super().__init__()
 
         self.encoder = Encoder(
@@ -43,7 +42,8 @@ class CPMAntPlus(bmt.DistributedModule):
         )
 
         self.input_embedding = Embedding(
-            vocab_size=config.vocab_size + config.prompt_length * config.prompt_types,
+            vocab_size=config.vocab_size
+            + config.prompt_length * config.prompt_types,
             embedding_size=config.dim_model,
             dtype=config.dtype,
             init_std=0.02,
@@ -69,7 +69,6 @@ class CPMAntPlus(bmt.DistributedModule):
         segment: torch.Tensor,  # (batch, seqlen)
         span: torch.Tensor,  # (batch, seqlen)
     ):
-
         batch = input.size(0)
         seqlen = input.size(1)
 
@@ -79,22 +78,30 @@ class CPMAntPlus(bmt.DistributedModule):
 
         with torch.no_grad():
             device = input.device
-            directional_mask_2d = torch.arange(seqlen, device=device) <= torch.arange(
+            directional_mask_2d = torch.arange(
                 seqlen, device=device
-            ).view(-1, 1)
+            ) <= torch.arange(seqlen, device=device).view(-1, 1)
             attention_mask = context[:, None, :] | (
-                context[:, :, None].logical_not() & directional_mask_2d.view(1, seqlen, seqlen)
+                context[:, :, None].logical_not()
+                & directional_mask_2d.view(1, seqlen, seqlen)
             )
-            attention_mask = attention_mask & (span[:, None, :] == span[:, :, None])
+            attention_mask = attention_mask & (
+                span[:, None, :] == span[:, :, None]
+            )
             mask_1d = (
-                torch.arange(seqlen, device=device)[None, :].repeat(batch, 1) < length[:, None]
+                torch.arange(seqlen, device=device)[None, :].repeat(batch, 1)
+                < length[:, None]
             )
             attention_mask = (
-                mask_1d.view(batch, seqlen, 1) & mask_1d.view(batch, 1, seqlen) & attention_mask
+                mask_1d.view(batch, seqlen, 1)
+                & mask_1d.view(batch, 1, seqlen)
+                & attention_mask
             )
 
         position_bias = self.position_bias(position, position, segment, segment)
-        hidden_states = self.encoder(hidden_states, attention_mask, position_bias)
+        hidden_states = self.encoder(
+            hidden_states, attention_mask, position_bias
+        )
 
         logits = self.input_embedding.projection(hidden_states)
         return logits, hidden_states
@@ -107,9 +114,8 @@ class CPMAntPlus(bmt.DistributedModule):
         position: torch.Tensor,  # (batch, seqlen)
         segment: torch.Tensor,  # (batch, seqlen)
         span: torch.Tensor,  # (batch, seqlen)
-        past_key_values=None  # num_layers * 2 * (batch, num_heads, seqlen, dim_head)
+        past_key_values=None,  # num_layers * 2 * (batch, num_heads, seqlen, dim_head)
     ):
-
         batch = input.size(0)
 
         if past_key_values is None:
@@ -123,26 +129,35 @@ class CPMAntPlus(bmt.DistributedModule):
         else:
             past_length = past_key_values[0][0].size(-2)
             segment_states = self.segment_embedding(segment)
-            hidden_states = self.input_embedding(input) + segment_states[:, -1:, :]
+            hidden_states = (
+                self.input_embedding(input) + segment_states[:, -1:, :]
+            )
 
         seqlen = past_length + input.size(1)
 
         with torch.no_grad():
             device = input.device
-            directional_mask_2d = torch.arange(seqlen, device=device) <= torch.arange(
+            directional_mask_2d = torch.arange(
                 seqlen, device=device
-            ).view(-1, 1)
+            ) <= torch.arange(seqlen, device=device).view(-1, 1)
             attention_mask = context[:, None, :] | (
-                context[:, :, None].logical_not() & directional_mask_2d.view(1, seqlen, seqlen)
+                context[:, :, None].logical_not()
+                & directional_mask_2d.view(1, seqlen, seqlen)
             )
-            attention_mask = attention_mask & (span[:, None, :] == span[:, :, None])
+            attention_mask = attention_mask & (
+                span[:, None, :] == span[:, :, None]
+            )
             # mask for left paddding
             mask_1d = (
-                torch.tensor(list(range(seqlen))[::-1], device=device)[None, :].repeat(batch, 1)
+                torch.tensor(list(range(seqlen))[::-1], device=device)[
+                    None, :
+                ].repeat(batch, 1)
                 < length[:, None]
             )
             attention_mask = (
-                mask_1d.view(batch, seqlen, 1) & mask_1d.view(batch, 1, seqlen) & attention_mask
+                mask_1d.view(batch, seqlen, 1)
+                & mask_1d.view(batch, 1, seqlen)
+                & attention_mask
             )
 
         position_bias = self.position_bias(position, position, segment, segment)

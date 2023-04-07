@@ -41,7 +41,6 @@ class SelfAttentionBlock(torch.nn.Module):
         eps: float = 1e-6,
         dropout_p: Optional[float] = None,
     ):
-
         super().__init__()
 
         self.layernorm_before_attention = LayerNorm(
@@ -82,7 +81,9 @@ class SelfAttentionBlock(torch.nn.Module):
 
         """  # noqa: E501
         x = self.layernorm_before_attention(hidden_states)
-        x = self.self_attention(x, x, attention_mask, position_bias, use_cache, past_key_value)
+        x = self.self_attention(
+            x, x, attention_mask, position_bias, use_cache, past_key_value
+        )
         if use_cache:
             x, current_key_value = x
         else:

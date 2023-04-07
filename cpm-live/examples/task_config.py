@@ -9,5 +9,6 @@ task_config = {
     "Math23K": {"tune": CPMAntPlusNLGTune, "infer": CPMAntPlusNLGInfer},
     "C3": {"tune": CPMAntPlusNLUTune, "infer": CPMAntPlusNLUInfer},
     "LCSTS": {"tune": CPMAntPlusNLGTune, "infer": CPMAntPlusNLGInfer},
-    "Sogou": {"tune": CPMAntPlusNLUTune, "infer": CPMAntPlusScoreInfer}
+    "Sogou": {"tune": CPMAntPlusNLUTune, "infer": CPMAntPlusScoreInfer},
+    "SGlueRTE": {"tune": CPMAntPlusNLGTune, "infer": CPMAntPlusNLGInfer},
 }

@@ -60,7 +60,9 @@ class CPMAntPlusTokenizer(object):
         self.space_token = " "
         self.pad_token = "<pad>"
 
-        self.encoder = load_vocab(pkg_resources.resource_stream("cpm_live", "vocabs/ant_plus.txt"))
+        self.encoder = load_vocab(
+            pkg_resources.resource_stream("cpm_live", "vocabs/ant_plus.txt")
+        )
         self.encoder[self.line_token] = self.encoder["</n>"]
         self.encoder[self.space_token] = self.encoder["</_>"]
         del self.encoder["</n>"]
@@ -68,7 +70,9 @@ class CPMAntPlusTokenizer(object):
 
         self.decoder = {v: k for k, v in self.encoder.items()}
         self._special_tokens = {
-            k: v for k, v in self.encoder.items() if k.startswith("<") and k.endswith(">")
+            k: v
+            for k, v in self.encoder.items()
+            if k.startswith("<") and k.endswith(">")
         }
 
         self._max_word_len = max([len(x) for x in self.encoder.keys()])
@@ -122,7 +126,9 @@ class CPMAntPlusTokenizer(object):
         for i, c in enumerate(text):
             if is_special_token:
                 if c == "<":
-                    raise ValueError("Invalid special token at pos {}".format(i))
+                    raise ValueError(
+                        "Invalid special token at pos {}".format(i)
+                    )
                 elif c == ">":
                     # end of special token
                     sentence_split[-1] += c
@@ -168,18 +174,32 @@ class CPMAntPlusTokenizer(object):
                             last_unk += piece
                     else:
                         if last_unk is None:
-                            output_tokens.append(Token(piece, part_st + part_pos, False, False))
+                            output_tokens.append(
+                                Token(piece, part_st + part_pos, False, False)
+                            )
                         else:
                             output_tokens.append(
-                                Token(last_unk, part_st + part_pos - len(last_unk), True, False)
+                                Token(
+                                    last_unk,
+                                    part_st + part_pos - len(last_unk),
+                                    True,
+                                    False,
+                                )
                             )
-                            output_tokens.append(Token(piece, part_st + part_pos, False, False))
+                            output_tokens.append(
+                                Token(piece, part_st + part_pos, False, False)
+                            )
                             last_unk = None
                     part_st += len(piece)
                 if last_unk is not None:
                     # part end with UNK
                     output_tokens.append(
-                        Token(last_unk, part_st + part_pos - len(last_unk), True, False)
+                        Token(
+                            last_unk,
+                            part_st + part_pos - len(last_unk),
+                            True,
+                            False,
+                        )
                     )
             part_pos += len(part)
         return output_tokens
@@ -188,9 +208,7 @@ class CPMAntPlusTokenizer(object):
     def escape(text: str) -> str:
         return text.replace("<", "<<")
 
-    def encode(
-        self, text: str, past_table: Dict[int, str] = {}
-    ) -> List[int]:
+    def encode(self, text: str, past_table: Dict[int, str] = {}) -> List[int]:
         ext_table_rev: Dict[str, int] = {}
         ext_table: Dict[int, str] = {}
         for idx, val in past_table.items():
@@ -203,11 +221,15 @@ class CPMAntPlusTokenizer(object):
             elif x.token in self.encoder:
                 ret.append(self.encoder[x.token])
             else:
-                raise ValueError("Unknown token `{}` at pos {}".format(x.token, x.start))
+                raise ValueError(
+                    "Unknown token `{}` at pos {}".format(x.token, x.start)
+                )
 
         return ret
 
-    def decode(self, tokens: List[int], ext_table: Optional[Dict[int, str]] = None):
+    def decode(
+        self, tokens: List[int], ext_table: Optional[Dict[int, str]] = None
+    ):
         """Decode ids into a string."""
         if ext_table is None:
             ext_table = {}

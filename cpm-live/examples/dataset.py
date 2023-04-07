@@ -24,10 +24,19 @@ class JsonlDataset(data.Dataset):
 
 class DistributedDataLoader:
     def __init__(
-        self, dataset, shuffle=False, num_workers=0, batch_size=1, collate_fn=None, **kwargs
+        self,
+        dataset,
+        shuffle=False,
+        num_workers=0,
+        batch_size=1,
+        collate_fn=None,
+        **kwargs
     ):
         self.sampler = data.DistributedSampler(
-            dataset, shuffle=shuffle, rank=bmt.rank(), num_replicas=bmt.world_size()
+            dataset,
+            shuffle=shuffle,
+            rank=bmt.rank(),
+            num_replicas=bmt.world_size(),
         )
         self.loader = data.DataLoader(
             dataset,

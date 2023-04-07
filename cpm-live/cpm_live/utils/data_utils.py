@@ -25,9 +25,14 @@ def pad(orig_items, key, padding_value=0, padding_side="left"):
     elif dim == 2:
         if max_length == min_length:
             return torch.cat([item[key] for item in items], dim=0)
-        tensor = torch.zeros((batch_size, max_length), dtype=dtype) + padding_value
+        tensor = (
+            torch.zeros((batch_size, max_length), dtype=dtype) + padding_value
+        )
     else:
-        tensor = torch.zeros((batch_size, max_length, shape[-1]), dtype=dtype) + padding_value
+        tensor = (
+            torch.zeros((batch_size, max_length, shape[-1]), dtype=dtype)
+            + padding_value
+        )
 
     for i, item in enumerate(items):
         if dim == 2:

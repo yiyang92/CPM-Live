@@ -83,7 +83,6 @@ class FeedForward(bmt.DistributedModule):
         dtype=torch.half,
         dropout_p: Optional[float] = None,
     ):
-
         super().__init__()
 
         self.w_in = DenseGatedACT(

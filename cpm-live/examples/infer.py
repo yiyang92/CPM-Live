@@ -14,7 +14,9 @@ class CPMAntPlusNLGInfer(CPMAntPlusBeamSearch):
 class CPMAntPlusNLUInfer(CPMAntPlusGeneration):
     def _convert_to_tensors(self, inputs, task_id=2):
         option_list = inputs["options"]
-        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(inputs["input"])
+        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(
+            inputs["input"]
+        )
 
         res = {}
         res["input"] = []
@@ -26,7 +28,10 @@ class CPMAntPlusNLUInfer(CPMAntPlusGeneration):
 
         for option in option_list:
             ids = (
-                [x + self.prompt_length * task_id + self.tokenizer.vocab_size for x in range(self.prompt_length)]
+                [
+                    x + self.prompt_length * task_id + self.tokenizer.vocab_size
+                    for x in range(self.prompt_length)
+                ]
                 + input_ids
                 + self.tokenizer.encode(option)
                 + self.tokenizer.encode("[是否正确]")
@@ -35,7 +40,9 @@ class CPMAntPlusNLUInfer(CPMAntPlusGeneration):
             res["length"].append(len(ids))
             res["context"].append([True] * len(ids))
             res["position"].append(list(range(len(ids))))
-            res["segment"].append([0] * self.prompt_length + [2] * (len(ids) - self.prompt_length))
+            res["segment"].append(
+                [0] * self.prompt_length + [2] * (len(ids) - self.prompt_length)
+            )
             res["span"].append([0] * len(ids))
 
         for key in res:
@@ -53,11 +60,16 @@ class CPMAntPlusNLUInfer(CPMAntPlusGeneration):
 
 class CPMAntPlusScoreInfer(CPMAntPlusGeneration):
     def _convert_to_tensors(self, inputs, task_id=2):
-        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(inputs["input"])
+        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(
+            inputs["input"]
+        )
 
         res = {}
         ids = (
-            [x + self.prompt_length * task_id + self.tokenizer.vocab_size for x in range(self.prompt_length)]
+            [
+                x + self.prompt_length * task_id + self.tokenizer.vocab_size
+                for x in range(self.prompt_length)
+            ]
             + input_ids
             + self.tokenizer.encode("[是否正确]")
         )
@@ -65,7 +77,9 @@ class CPMAntPlusScoreInfer(CPMAntPlusGeneration):
         res["length"] = len(ids)
         res["context"] = [True] * len(ids)
         res["position"] = list(range(len(ids)))
-        res["segment"] = [0] * self.prompt_length + [2] * (len(ids) - self.prompt_length)
+        res["segment"] = [0] * self.prompt_length + [2] * (
+            len(ids) - self.prompt_length
+        )
         res["span"] = [0] * len(ids)
 
         for key in res:

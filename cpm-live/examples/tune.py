@@ -51,14 +51,17 @@ class CPMAntPlusTune:
         output_path="output",
         early_stop_patience=None,
     ):
-
         self.model = model
         self.tokenizer = tokenizer
         self.optimizer = bmt.optim.AdamOffloadOptimizer(
             model.parameters(), weight_decay=0.01, scale=1048576
         )
         self.lr_scheduler = bmt.lr_scheduler.Noam(
-            self.optimizer, start_lr=lr, warmup_iter=warmup_iters, end_iter=-1, num_iter=0
+            self.optimizer,
+            start_lr=lr,
+            warmup_iter=warmup_iters,
+            end_iter=-1,
+            num_iter=0,
         )
         self.loss_function = bmt.loss.FusedCrossEntropy(ignore_index=-100)
         self.task_id = task_id
@@ -80,7 +83,6 @@ class CPMAntPlusTune:
             self.summary_writer = None
 
     def _ensure_tensor_on_device(self, inputs, device):
-
         if isinstance(inputs, dict):
             return {
                 name: self._ensure_tensor_on_device(tensor, device)
@@ -100,7 +102,6 @@ class CPMAntPlusTune:
         raise NotImplementedError("_forward is not implemented")
 
     def forward(self, train_dataloader, eval_dataloader, cls_num=None):
-
         average_time = 0
         average_time_shift = 0.9
         global_step = 0
@@ -110,7 +111,9 @@ class CPMAntPlusTune:
         self.optimizer.zero_grad()
         for epoch in range(self.epochs):
             for idx, train_data in enumerate(train_dataloader):
-                train_data = self._ensure_tensor_on_device(train_data, device="cuda")
+                train_data = self._ensure_tensor_on_device(
+                    train_data, device="cuda"
+                )
                 self.model.train()
                 global_step += 1
 
@@ -131,7 +134,8 @@ class CPMAntPlusTune:
 
                 iteration_time = time.time() - start_time
                 average_time = (
-                    average_time * average_time_shift + (1 - average_time_shift) * iteration_time
+                    average_time * average_time_shift
+                    + (1 - average_time_shift) * iteration_time
                 )
 
                 bmt.print_rank(
@@ -142,13 +146,16 @@ class CPMAntPlusTune:
                         global_loss,
                         self.lr_scheduler.current_lr,
                         int(self.optimizer.scale),
-                        average_time / (1 - pow(average_time_shift, global_step + 1)),
+                        average_time
+                        / (1 - pow(average_time_shift, global_step + 1)),
                         grad_norm,
                     )
                 )
 
                 if bmt.rank() == 0 and self.summary_writer is not None:
-                    self.summary_writer.add_scalar("Loss/train", global_loss, global_step)
+                    self.summary_writer.add_scalar(
+                        "Loss/train", global_loss, global_step
+                    )
 
                 self.optimizer.zero_grad()
 
@@ -160,7 +167,9 @@ class CPMAntPlusTune:
                     with torch.inference_mode():
                         for eval_data in eval_dataloader:
                             cnt += 1
-                            eval_data = self._ensure_tensor_on_device(eval_data, device="cuda")
+                            eval_data = self._ensure_tensor_on_device(
+                                eval_data, device="cuda"
+                            )
                             loss = self._forward(eval_data, cls_num=cls_num)
                             total_loss += bmt.sum_loss(loss).item()
 
@@ -168,20 +177,28 @@ class CPMAntPlusTune:
                     eval_loss = total_loss / cnt
 
                     if bmt.rank() == 0 and self.summary_writer is not None:
-                        self.summary_writer.add_scalar("Loss/eval", eval_loss, global_step)
+                        self.summary_writer.add_scalar(
+                            "Loss/eval", eval_loss, global_step
+                        )
 
                     bmt.print_rank(
-                        "| Eval | Iter: {:6d} | loss: {:.4f}".format(global_step, eval_loss)
+                        "| Eval | Iter: {:6d} | loss: {:.4f}".format(
+                            global_step, eval_loss
+                        )
                     )
 
                     # save best model
                     if eval_loss < best_eval_loss:
                         bmt.print_rank(
-                            "[INFO] Iteration {} is the best checkpoint now!".format(global_step)
+                            "[INFO] Iteration {} is the best checkpoint now!".format(
+                                global_step
+                            )
                         )
                         best_eval_loss = eval_loss
                         best_eval_step = global_step
-                        ckpt_full_path = os.path.join(self.output_path, "best.pt")
+                        ckpt_full_path = os.path.join(
+                            self.output_path, "best.pt"
+                        )
 
                         state_dict = self.model.state_dict()
                         if bmt.rank() == 0:
@@ -191,7 +208,11 @@ class CPMAntPlusTune:
                         and (global_step - best_eval_step) // self.eval_interval
                         >= self.early_stop_patience
                     ):
-                        bmt.print_rank("[INFO] Early stop at iteration {}!".format(global_step))
+                        bmt.print_rank(
+                            "[INFO] Early stop at iteration {}!".format(
+                                global_step
+                            )
+                        )
                         return
             bmt.print_rank(f"[INFO] Epoch {epoch} finished!")
         return
@@ -228,7 +249,9 @@ class CPMAntPlusNLGTune(CPMAntPlusTune):
     def process_data(self, inputs):
         res = {}
         target = inputs["target"]
-        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(inputs["input"])
+        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(
+            inputs["input"]
+        )
         target_ids = self.tokenizer.encode(target) + [self.tokenizer.eos_id]
 
         if self.prompt_length + len(input_ids) + len(target_ids) > self.max_len:
@@ -239,7 +262,9 @@ class CPMAntPlusNLGTune(CPMAntPlusTune):
                     "Consider to increase max_len!"
                 )
 
-            tr_input_length = self.max_len - self.prompt_length - len(target_ids)
+            tr_input_length = (
+                self.max_len - self.prompt_length - len(target_ids)
+            )
             if tr_input_length > 0:
                 input_ids = input_ids[-tr_input_length:]
             else:
@@ -251,7 +276,12 @@ class CPMAntPlusNLGTune(CPMAntPlusTune):
                 target_ids = target_ids[-(self.max_len - self.prompt_length) :]
 
         res["input"] = (
-            [x + self.prompt_length * self.task_id + self.tokenizer.vocab_size for x in range(self.prompt_length)]
+            [
+                x
+                + self.prompt_length * self.task_id
+                + self.tokenizer.vocab_size
+                for x in range(self.prompt_length)
+            ]
             + input_ids
             + target_ids
         )
@@ -259,7 +289,9 @@ class CPMAntPlusNLGTune(CPMAntPlusTune):
         res["length"] = len(res["input"])
         res["position"] = list(range(len(res["input"])))
         res["span"] = [0] * len(res["input"])
-        res["context"] = [True] * (len(res["input"]) - len(target_ids)) + [False] * len(target_ids)
+        res["context"] = [True] * (len(res["input"]) - len(target_ids)) + [
+            False
+        ] * len(target_ids)
 
         res["segment"] = [0] * self.prompt_length
         res["segment"] += [2] * len(input_ids)
@@ -277,7 +309,9 @@ class CPMAntPlusNLGTune(CPMAntPlusTune):
     def _forward(self, model_inputs, **kwargs):
         targets = model_inputs.pop("target", None)
         logits, _ = self.model(**model_inputs)
-        loss = self.loss_function(logits.view(-1, logits.shape[-1]), targets.view(-1))
+        loss = self.loss_function(
+            logits.view(-1, logits.shape[-1]), targets.view(-1)
+        )
 
         return loss
 
@@ -292,7 +326,9 @@ class CPMAntPlusNLUTune(CPMAntPlusTune):
         assert isinstance(target, int), "target must be an int in nlu tasks!"
         option_list = inputs["options"]
 
-        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(inputs["input"])
+        input_ids = [self.tokenizer.bos_id] + self.tokenizer.encode(
+            inputs["input"]
+        )
 
         res = {}
         res["input"] = []
@@ -304,7 +340,9 @@ class CPMAntPlusNLUTune(CPMAntPlusTune):
 
         for option in option_list:
             cur_input_ids = (
-                input_ids + self.tokenizer.encode(option) + self.tokenizer.encode("[是否正确]")
+                input_ids
+                + self.tokenizer.encode(option)
+                + self.tokenizer.encode("[是否正确]")
             )
             if self.prompt_length + len(cur_input_ids) > self.max_len:
                 self.truncate_num += 1
@@ -319,14 +357,19 @@ class CPMAntPlusNLUTune(CPMAntPlusTune):
                 cur_input_ids = cur_input_ids[-tr_input_length:]
 
             ids = [
-                x + self.prompt_length * self.task_id + self.tokenizer.vocab_size for x in range(self.prompt_length)
+                x
+                + self.prompt_length * self.task_id
+                + self.tokenizer.vocab_size
+                for x in range(self.prompt_length)
             ] + cur_input_ids
             res["input"].append(ids)
             res["length"].append(len(ids))
             res["position"].append(list(range(len(ids))))
             res["span"].append([0] * len(ids))
             res["context"].append([True] * len(ids))
-            res["segment"].append([0] * self.prompt_length + [2] * len(cur_input_ids))
+            res["segment"].append(
+                [0] * self.prompt_length + [2] * len(cur_input_ids)
+            )
 
         for key in res:
             for i in range(len(res[key])):
@@ -341,7 +384,10 @@ class CPMAntPlusNLUTune(CPMAntPlusTune):
         output, _ = self.model(**model_inputs)
         output = output[:, :, self.tokenizer.encode("是")[0]]
         logits = (
-            output[torch.arange(output.size(0)), (model_inputs["length"] - 1).long()]
+            output[
+                torch.arange(output.size(0)),
+                (model_inputs["length"] - 1).long(),
+            ]
             .unsqueeze(1)
             .view(-1, cls_num)
         )

@@ -1,6 +1,10 @@
 import torch
 import torch.nn.functional as F
-from .generation_utils import BeamHypotheses, apply_repetition_penalty, top_k_top_p_filtering
+from .generation_utils import (
+    BeamHypotheses,
+    apply_repetition_penalty,
+    top_k_top_p_filtering,
+)
 from ..utils import pad
 
 
@@ -23,10 +27,14 @@ class CPMAntGeneration:
         model_inputs["position"] = list(range(len(model_inputs["input"])))
         model_inputs["span"] = [0] * len(model_inputs["input"])
         model_inputs["context"] = [True] * len(model_inputs["input"])
-        model_inputs["segment"] = [0] * self.prompt_length + [2] * len(input_ids)
+        model_inputs["segment"] = [0] * self.prompt_length + [2] * len(
+            input_ids
+        )
 
         for key in model_inputs:
-            model_inputs[key] = torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            model_inputs[key] = (
+                torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            )
 
         return model_inputs
 
@@ -121,13 +129,17 @@ class CPMAntBeamSearch(CPMAntGeneration):
 
         done = [False for _ in range(batch_size)]
 
-        beam_scores = torch.zeros((batch_size, beam_size), dtype=torch.float, device=input.device)
+        beam_scores = torch.zeros(
+            (batch_size, beam_size), dtype=torch.float, device=input.device
+        )
         beam_scores[:, 1:] = -1e9
         beam_scores = beam_scores.view(-1)
 
         # generated hypotheses
         generated_hyps = [
-            BeamHypotheses(beam_size, max_length, length_penalty=1, early_stopping=False)
+            BeamHypotheses(
+                beam_size, max_length, length_penalty=1, early_stopping=False
+            )
             for _ in range(batch_size)
         ]
 
@@ -183,19 +195,25 @@ class CPMAntBeamSearch(CPMAntGeneration):
             )  # (batch_size * beam_size, vocab_size)
 
             # re-organize to group the beam together (we are keeping top hypothesis accross beams)
-            next_scores = next_scores.view(batch_size, -1)  # (batch_size, beam_size * vocab_size)
+            next_scores = next_scores.view(
+                batch_size, -1
+            )  # (batch_size, beam_size * vocab_size)
             next_scores, next_words = torch.topk(
                 next_scores, 2 * beam_size, dim=1, largest=True, sorted=True
             )
 
-            assert next_scores.size() == next_words.size() == (batch_size, 2 * beam_size)
+            assert (
+                next_scores.size()
+                == next_words.size()
+                == (batch_size, 2 * beam_size)
+            )
             next_batch_beam = []
 
             for sent_id in range(batch_size):
                 # if we are done with this sentence
-                done[sent_id] = done[sent_id] or generated_hyps[sent_id].is_done(
-                    next_scores[sent_id].max().item(), i
-                )
+                done[sent_id] = done[sent_id] or generated_hyps[
+                    sent_id
+                ].is_done(next_scores[sent_id].max().item(), i)
                 if done[sent_id]:
                     next_batch_beam.extend(
                         [(0, self.tokenizer.pad_id, 0)] * beam_size
@@ -206,32 +224,43 @@ class CPMAntBeamSearch(CPMAntGeneration):
                 next_sent_beam = []
 
                 # next words for this sentence
-                for idx, value in zip(next_words[sent_id], next_scores[sent_id]):
-
+                for idx, value in zip(
+                    next_words[sent_id], next_scores[sent_id]
+                ):
                     # get beam and word IDs
-                    beam_id = torch.div(idx, scores.size(-1), rounding_mode="floor")
+                    beam_id = torch.div(
+                        idx, scores.size(-1), rounding_mode="floor"
+                    )
                     word_id = idx % scores.size(-1)
 
                     # end of sentence, or next word
                     if word_id == self.tokenizer.eos_id or i == max_length:
                         generated_hyps[sent_id].add(
-                            input[sent_id * beam_size + beam_id, pred_start_index:]
+                            input[
+                                sent_id * beam_size + beam_id, pred_start_index:
+                            ]
                             .clone()
                             .cpu()
                             .tolist(),
                             value.item(),
                         )
                     else:
-                        next_sent_beam.append((value, word_id, sent_id * beam_size + beam_id))
+                        next_sent_beam.append(
+                            (value, word_id, sent_id * beam_size + beam_id)
+                        )
 
                     # the beam for next step is full
                     if len(next_sent_beam) == beam_size:
                         break
 
                 # update next beam content
-                assert len(next_sent_beam) == 0 if i == max_length else beam_size
+                assert (
+                    len(next_sent_beam) == 0 if i == max_length else beam_size
+                )
                 if len(next_sent_beam) == 0:
-                    next_sent_beam = [(0, self.tokenizer.pad_id, 0)] * beam_size  # pad the batch
+                    next_sent_beam = [
+                        (0, self.tokenizer.pad_id, 0)
+                    ] * beam_size  # pad the batch
                 next_batch_beam.extend(next_sent_beam)
                 assert len(next_batch_beam) == beam_size * (sent_id + 1)
 
@@ -258,7 +287,14 @@ class CPMAntBeamSearch(CPMAntGeneration):
             input = torch.cat([input, beam_words.unsqueeze(1)], dim=-1)
             length += 1
             context = torch.cat(
-                [context, torch.ones((context.size(0), 1), dtype=torch.int, device=context.device)],
+                [
+                    context,
+                    torch.ones(
+                        (context.size(0), 1),
+                        dtype=torch.int,
+                        device=context.device,
+                    ),
+                ],
                 dim=-1,
             )
             position = torch.cat([position, position[:, -1:] + 1], dim=-1)
@@ -362,7 +398,8 @@ class CPMAntRandomSampling(CPMAntGeneration):
 
             for idx in range(batch_size):
                 if not done[idx] and (
-                    next_token[idx].item() == self.tokenizer.eos_id or i == max_length - 1
+                    next_token[idx].item() == self.tokenizer.eos_id
+                    or i == max_length - 1
                 ):
                     done[idx] = True
                     results[idx] = input[idx, pred_start_index:].clone().cpu().tolist()  # type: ignore # noqa: E501
@@ -374,7 +411,14 @@ class CPMAntRandomSampling(CPMAntGeneration):
             input = torch.cat([input, next_token], dim=-1)
             length += 1
             context = torch.cat(
-                [context, torch.ones((context.size(0), 1), dtype=torch.int, device=context.device)],
+                [
+                    context,
+                    torch.ones(
+                        (context.size(0), 1),
+                        dtype=torch.int,
+                        device=context.device,
+                    ),
+                ],
                 dim=-1,
             )
             position = torch.cat([position, position[:, -1:] + 1], dim=-1)

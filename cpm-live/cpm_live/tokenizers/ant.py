@@ -62,7 +62,6 @@ class CPMAntTokenizer(object):
         line_token="</n>",
         space_token="</_>",
     ):
-
         self.bod_token = bod_token
         self.eod_token = eod_token
         self.bos_token = bos_token
@@ -72,7 +71,9 @@ class CPMAntTokenizer(object):
         self.line_token = line_token
         self.space_token = space_token
 
-        self.encoder = load_vocab(pkg_resources.resource_stream("cpm_live", "vocabs/ant.txt"))
+        self.encoder = load_vocab(
+            pkg_resources.resource_stream("cpm_live", "vocabs/ant.txt")
+        )
         self.encoder[" "] = self.encoder[space_token]
         self.encoder["\n"] = self.encoder[line_token]
 
@@ -81,7 +82,9 @@ class CPMAntTokenizer(object):
 
         self.decoder = {v: k for k, v in self.encoder.items()}
 
-        self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.encoder, unk_token=self.unk_token)
+        self.wordpiece_tokenizer = WordpieceTokenizer(
+            vocab=self.encoder, unk_token=self.unk_token
+        )
 
     @property
     def vocab_size(self):
@@ -139,7 +142,9 @@ class CPMAntTokenizer(object):
         return token in self.encoder
 
     def convert_tokens_to_ids(self, tokens):
-        return [self.encoder.get(x, self.encoder[self.unk_token]) for x in tokens]
+        return [
+            self.encoder.get(x, self.encoder[self.unk_token]) for x in tokens
+        ]
 
     def convert_ids_to_tokens(self, ids):
         return [self.decoder[x] if x >= 0 else self.unk_token for x in ids]

@@ -33,13 +33,19 @@ def get_model(args):
 
 def get_optimizer(args, model):
     optimizer = bmt.optim.AdamOffloadOptimizer(
-        model.parameters(), weight_decay=args.weight_decay, scale=args.loss_scale
+        model.parameters(),
+        weight_decay=args.weight_decay,
+        scale=args.loss_scale,
     )
     if args.load is not None:
-        if os.path.exists(os.path.join(args.save, args.save_name + (".rank-%d.opt" % 0))):
+        if os.path.exists(
+            os.path.join(args.save, args.save_name + (".rank-%d.opt" % 0))
+        ):
             # optimizer state exists
             states = torch.load(
-                os.path.join(args.save, args.save_name + (".rank-%d.opt" % bmt.rank()))
+                os.path.join(
+                    args.save, args.save_name + (".rank-%d.opt" % bmt.rank())
+                )
             )
             optimizer.load_state_dict(states)
     return optimizer
@@ -70,7 +76,9 @@ def setup_model_and_optimizer(args):
 
 def initialize():
     args = get_args()
-    bmt.init_distributed(seed=args.seed, loss_scale_factor=2, loss_scale_steps=512)
+    bmt.init_distributed(
+        seed=args.seed, loss_scale_factor=2, loss_scale_steps=512
+    )
     if args.save is not None:
         os.makedirs(args.save, exist_ok=True)
     return args
@@ -168,39 +176,46 @@ class BatchPacker:
 
             for index in range(len(ctx)):
                 if span[index][-1] + _len < self.max_length:
-                    ctx[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        ctx_data
-                    )[:_len].long()
-                    tgt[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        tgt_data
-                    )[:_len].long()
-                    context[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        context_data
-                    )[:_len].bool()
-                    position[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        position_data
-                    )[:_len].long()
-                    segment[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        segment_data
-                    )[:_len].long()
-                    task_info[index][span[index][-1] : span[index][-1] + _len] = torch.from_numpy(
-                        task_data
-                    )[:_len].long()
+                    ctx[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(ctx_data)[:_len].long()
+                    tgt[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(tgt_data)[:_len].long()
+                    context[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(context_data)[:_len].bool()
+                    position[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(position_data)[:_len].long()
+                    segment[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(segment_data)[:_len].long()
+                    task_info[index][
+                        span[index][-1] : span[index][-1] + _len
+                    ] = torch.from_numpy(task_data)[:_len].long()
                     span[index].append(span[index][-1] + _len)
                     break
             else:
-
                 _ctx = torch.zeros((self.max_length,), dtype=torch.long)
                 _ctx[:_len] = torch.from_numpy(ctx_data)[:_len].long()
                 _tgt = torch.full((self.max_length,), -100, dtype=torch.long)
                 _tgt[:_len] = torch.from_numpy(tgt_data)[:_len].long()
-                _context = torch.full((self.max_length,), False, dtype=torch.bool)
+                _context = torch.full(
+                    (self.max_length,), False, dtype=torch.bool
+                )
                 _context[:_len] = torch.from_numpy(context_data)[:_len].bool()
-                _position = torch.full((self.max_length,), False, dtype=torch.long)
+                _position = torch.full(
+                    (self.max_length,), False, dtype=torch.long
+                )
                 _position[:_len] = torch.from_numpy(position_data)[:_len].long()
-                _segment = torch.full((self.max_length,), False, dtype=torch.long)
+                _segment = torch.full(
+                    (self.max_length,), False, dtype=torch.long
+                )
                 _segment[:_len] = torch.from_numpy(segment_data)[:_len].long()
-                _task_info = torch.full((self.max_length,), -1, dtype=torch.long)
+                _task_info = torch.full(
+                    (self.max_length,), -1, dtype=torch.long
+                )
                 _task_info[:_len] = torch.from_numpy(task_data)[:_len].long()
                 ctx.append(_ctx)
                 tgt.append(_tgt)
@@ -211,7 +226,9 @@ class BatchPacker:
                 span.append([_len])
 
             if len(ctx) > self.batch_size:
-                _span = torch.zeros((self.batch_size, self.max_length + 1), dtype=torch.long)
+                _span = torch.zeros(
+                    (self.batch_size, self.max_length + 1), dtype=torch.long
+                )
                 for bindex in range(self.batch_size):
                     for sindex in span[bindex]:
                         _span[bindex][sindex] = 1
@@ -223,7 +240,9 @@ class BatchPacker:
                     "segment": torch.stack(segment[: self.batch_size]),
                     "position": torch.stack(position[: self.batch_size]),
                     "span": torch.cumsum(_span, dim=-1)[:, :-1],
-                    "len_ctx": torch.LongTensor([it[-1] for it in span[: self.batch_size]]),
+                    "len_ctx": torch.LongTensor(
+                        [it[-1] for it in span[: self.batch_size]]
+                    ),
                     "task": torch.stack(task_info[: self.batch_size]),
                 }
 
@@ -237,7 +256,6 @@ class BatchPacker:
 
 
 def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
-
     average_time = bmt.utils.AverageRecorder()
     loss_func = bmt.loss.FusedCrossEntropy(ignore_index=-100)
 
@@ -255,17 +273,20 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
         if latest_log is not None:
             global_token_pass = latest_log["token pass"]
 
-    if os.path.exists(os.path.join(args.save, args.save_name + ("-%d.data.pt" % start_step))):
+    if os.path.exists(
+        os.path.join(args.save, args.save_name + ("-%d.data.pt" % start_step))
+    ):
         # load dataset states if exists
         dataset_states = torch.load(
-            os.path.join(args.save, args.save_name + ("-%d.data.pt" % start_step))
+            os.path.join(
+                args.save, args.save_name + ("-%d.data.pt" % start_step)
+            )
         )
         dataset.dataset.load_state_dict(dataset_states)
 
     dataloader = BatchPacker(dataset, args.max_length, args.batch_size)
 
     for iteration, data in enumerate(dataloader):
-
         iteration = iteration + start_step + 1
         assert len(data["ctx"]) == args.batch_size
         input_idx = data["ctx"].int().cuda()
@@ -304,7 +325,10 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
 
         # ===========
         grad_norm = bmt.optim.clip_grad_norm(
-            optimizer.param_groups, args.clip_grad, scale=optimizer.scale, norm_type=2
+            optimizer.param_groups,
+            args.clip_grad,
+            scale=optimizer.scale,
+            norm_type=2,
         )
         bmt.optim_step(optimizer, lr_scheduler)
         mem_usage, tim_usage = add_mem_time("optim", mem_usage, tim_usage)
@@ -316,7 +340,9 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
         task_ids = get_tasks()
         with torch.no_grad():
             task_num = len(task_ids)
-            logits_tmp = logits.view(-1, logits.size(-1)).expand(task_num, -1, -1)
+            logits_tmp = logits.view(-1, logits.size(-1)).expand(
+                task_num, -1, -1
+            )
             targets_tmp = targets.expand(task_num, -1, -1)
             task_info = task_info.expand(task_num, -1, -1)
 
@@ -325,11 +351,17 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
 
             task_loss_list = []
             for i in range(task_num):
-                task_loss = loss_func(logits_tmp[i, :], targets_tmp[i, :].view(-1))
-                global_task_loss = bmt.gather_result(task_loss.unsqueeze(0)).nanmean().item()
+                task_loss = loss_func(
+                    logits_tmp[i, :], targets_tmp[i, :].view(-1)
+                )
+                global_task_loss = (
+                    bmt.gather_result(task_loss.unsqueeze(0)).nanmean().item()
+                )
                 task_loss_list.append(global_task_loss)
 
-        local_total_rate = torch.Tensor([input_length.float().mean() / args.max_length]).cuda()
+        local_total_rate = torch.Tensor(
+            [input_length.float().mean() / args.max_length]
+        ).cuda()
         local_total_rate = bmt.sum_loss(local_total_rate).item()
         global_token_pass += (
             global_world_size
@@ -339,7 +371,10 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
         )
         avg_time = average_time.value
         global_throughout += (
-            (args.max_length - args.prompt_length) * args.batch_size * local_total_rate / avg_time
+            (args.max_length - args.prompt_length)
+            * args.batch_size
+            * local_total_rate
+            / avg_time
         )
 
         train_info = {
@@ -359,10 +394,15 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
             / avg_time,
             "global throughout (token/s)": global_throughout / iteration,
             "grad_norm": grad_norm.item(),
-            "mask/max": ((targets >= 0).sum(-1).float().mean() / args.max_length).item(),
+            "mask/max": (
+                (targets >= 0).sum(-1).float().mean() / args.max_length
+            ).item(),
             "num_gpus": global_world_size,
         }
-        task_loss = {task_name: task_loss_list[idx] for (task_name, idx) in task_ids.items()}
+        task_loss = {
+            task_name: task_loss_list[idx]
+            for (task_name, idx) in task_ids.items()
+        }
         train_info["task_loss"] = task_loss
 
         bmt.print_rank(
@@ -395,27 +435,39 @@ def pretrain(args, tokenizer, model, optimizer, lr_scheduler, dataset):
             train_info["model_inspect"] = model_inspect
 
         if bmt.rank() == 0:
-
             with open(get_log_name(), "a") as ff:
                 ff.write(json.dumps(train_info) + "\n")
 
         if bmt.rank() == 0:
             writer.add_scalar("Loss/train", global_loss, iteration)
             for i in task_ids.keys():
-                writer.add_scalar("Loss/train/{}".format(i), task_loss_list[task_ids[i]], iteration)
+                writer.add_scalar(
+                    "Loss/train/{}".format(i),
+                    task_loss_list[task_ids[i]],
+                    iteration,
+                )
 
         if args.save is not None and iteration % args.save_iters == 0:
-            bmt.save(model, os.path.join(args.save, args.save_name + ("-%d.pt" % iteration)))
+            bmt.save(
+                model,
+                os.path.join(
+                    args.save, args.save_name + ("-%d.pt" % iteration)
+                ),
+            )
             torch.save(
                 optimizer.state_dict(),
-                os.path.join(args.save, args.save_name + (".rank-%d.opt" % bmt.rank())),
+                os.path.join(
+                    args.save, args.save_name + (".rank-%d.opt" % bmt.rank())
+                ),
             )
             all_states = dataset.dataset.state_dict()
             if bmt.rank() == 0:
                 # rank 0 writes the dataloader state
                 torch.save(
                     all_states,
-                    os.path.join(args.save, args.save_name + ("-%d.data.pt" % iteration)),
+                    os.path.join(
+                        args.save, args.save_name + ("-%d.data.pt" % iteration)
+                    ),
                 )
             del all_states
 

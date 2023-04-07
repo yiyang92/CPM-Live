@@ -29,7 +29,6 @@ class SegmentPositionEmbedding(torch.nn.Module):
         init_mean: float = 0.0,
         init_std: float = 1,
     ):
-
         super().__init__()
 
         self.num_heads = num_heads
@@ -39,7 +38,11 @@ class SegmentPositionEmbedding(torch.nn.Module):
         self.num_segments = num_segments
 
         self.relative_attention_bias = torch.nn.parameter.Parameter(
-            torch.empty(num_segments * num_segments + num_buckets, num_heads, dtype=dtype)
+            torch.empty(
+                num_segments * num_segments + num_buckets,
+                num_heads,
+                dtype=dtype,
+            )
         )
 
     def forward(
@@ -50,13 +53,14 @@ class SegmentPositionEmbedding(torch.nn.Module):
         query_segment: torch.Tensor,
     ):
         with torch.no_grad():
-
             batch = key_pos.size(0)
             keylen = key_pos.size(1)
             querylen = query_pos.size(1)
 
             assert key_pos.size(0) == query_pos.size(0)
-            assert keylen == key_segment.size(1) and querylen == query_segment.size(1)
+            assert keylen == key_segment.size(
+                1
+            ) and querylen == query_segment.size(1)
 
             key_pos = key_pos.view(batch, -1, keylen)
             query_pos = query_pos.view(batch, querylen, -1)
@@ -66,16 +70,22 @@ class SegmentPositionEmbedding(torch.nn.Module):
             relative_position_bucket = self._segment_relative_position_bucket(
                 query_segment, key_segment
             )
-            relative_position_bucket = relative_position_bucket + self.num_buckets  # 与相对位置编码区间不重叠
+            relative_position_bucket = (
+                relative_position_bucket + self.num_buckets
+            )  # 与相对位置编码区间不重叠
 
             # b*q*k
             absolute_position_bucket = self._position_bucket(
-                torch.arange(keylen, dtype=torch.int32, device=relative_position_bucket.device)[
-                    None, :
-                ]
-                - torch.arange(querylen, dtype=torch.int32, device=relative_position_bucket.device)[
-                    :, None
-                ],
+                torch.arange(
+                    keylen,
+                    dtype=torch.int32,
+                    device=relative_position_bucket.device,
+                )[None, :]
+                - torch.arange(
+                    querylen,
+                    dtype=torch.int32,
+                    device=relative_position_bucket.device,
+                )[:, None],
                 bidirectional=self.bidirectional,
                 num_buckets=self.num_buckets,
                 max_distance=self.max_distance,
@@ -88,7 +98,9 @@ class SegmentPositionEmbedding(torch.nn.Module):
             # (batch, len_q, len_k)
 
         # (batch, len_q, len_k, num_heads)
-        embeds = F.embedding(relative_position_bucket, self.relative_attention_bias)
+        embeds = F.embedding(
+            relative_position_bucket, self.relative_attention_bias
+        )
         # (batch, num_heads, len_q, len_k)
         embeds = embeds.permute(0, 3, 1, 2).contiguous()
         return embeds
@@ -97,15 +109,23 @@ class SegmentPositionEmbedding(torch.nn.Module):
         return query_segment * self.num_segments + key_segment
 
     def _position_bucket(
-        self, relative_position, bidirectional=True, num_buckets=32, max_distance=128
+        self,
+        relative_position,
+        bidirectional=True,
+        num_buckets=32,
+        max_distance=128,
     ):
         relative_buckets = 0
         if bidirectional:
             num_buckets //= 2
-            relative_buckets = (relative_position > 0).to(torch.int32) * num_buckets
+            relative_buckets = (relative_position > 0).to(
+                torch.int32
+            ) * num_buckets
             relative_position = torch.abs(relative_position)
         else:
-            relative_position = -torch.min(relative_position, torch.zeros_like(relative_position))
+            relative_position = -torch.min(
+                relative_position, torch.zeros_like(relative_position)
+            )
         max_exact = num_buckets // 2
         is_small = relative_position < max_exact
         relative_postion_if_large = max_exact + (
@@ -118,6 +138,8 @@ class SegmentPositionEmbedding(torch.nn.Module):
             torch.full_like(relative_postion_if_large, num_buckets - 1),
         )
         relative_buckets += torch.where(
-            is_small, relative_position.to(torch.int32), relative_postion_if_large
+            is_small,
+            relative_position.to(torch.int32),
+            relative_postion_if_large,
         )
         return relative_buckets

@@ -28,7 +28,6 @@ class Embedding(bmt.DistributedModule):
         init_mean: float = 0.0,
         init_std: float = 1,
     ):
-
         super().__init__()
 
         self.dim_model = embedding_size

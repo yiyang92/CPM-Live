@@ -33,7 +33,6 @@ class CPMAntPretrainDataset(data.Dataset):
         return self.ctx
 
     def __get_item_data(self, raw_data):
-
         global_task = raw_data[0]
         n_segment = raw_data[1]
         len_info = n_segment * 3 + 2
@@ -61,7 +60,10 @@ class CPMAntPretrainDataset(data.Dataset):
             if task == 0:
                 num_mask = random.randint(1, segment_len[i] - 1)
                 mask_idx = (
-                    np.random.choice(segment_len[i] - 1, num_mask, replace=False) + segment_begin
+                    np.random.choice(
+                        segment_len[i] - 1, num_mask, replace=False
+                    )
+                    + segment_begin
                 )
                 context_inp[mask_idx + 1] = False
                 assert segment_type[i] == 1
@@ -84,23 +86,40 @@ class CPMAntPretrainDataset(data.Dataset):
             )
             segment_begin = segment_end
         # prepend prompt segment
-        context_inp = np.concatenate((np.full(self.prompt_length, True), context_inp))
+        context_inp = np.concatenate(
+            (np.full(self.prompt_length, True), context_inp)
+        )
         position_inp = np.concatenate(
             (
                 np.arange(self.prompt_length, dtype=np.int64),
                 position_inp + self.prompt_length,
             )
         )
-        segment_inp = np.concatenate((np.full(self.prompt_length, 0, dtype=np.int64), segment_inp))
-        task_inp = np.concatenate((np.full(self.prompt_length, 0, dtype=np.int64), task_inp))
-        tgt = np.concatenate((np.full(self.prompt_length, -100, dtype=np.int64), tgt))
+        segment_inp = np.concatenate(
+            (np.full(self.prompt_length, 0, dtype=np.int64), segment_inp)
+        )
+        task_inp = np.concatenate(
+            (np.full(self.prompt_length, 0, dtype=np.int64), task_inp)
+        )
+        tgt = np.concatenate(
+            (np.full(self.prompt_length, -100, dtype=np.int64), tgt)
+        )
         inp = np.concatenate(
             (
-                np.arange(self.prompt_length, dtype=np.int64) + self.prompt_length * global_task,
+                np.arange(self.prompt_length, dtype=np.int64)
+                + self.prompt_length * global_task,
                 ctx,
             )
         )
-        return inp, tgt, inp.shape[0], context_inp, position_inp, segment_inp, task_inp
+        return (
+            inp,
+            tgt,
+            inp.shape[0],
+            context_inp,
+            position_inp,
+            segment_inp,
+            task_inp,
+        )
 
     def __iter__(self):
         while True:

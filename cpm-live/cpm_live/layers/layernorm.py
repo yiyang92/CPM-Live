@@ -20,12 +20,13 @@ class LayerNorm(bmt.DistributedModule):
         eps: float = 1e-6,
         init_var: float = 1.0,
     ):
-
         super().__init__()
 
         self.eps = eps
         self.dim_norm = dim_norm
-        self.weight = bmt.DistributedParameter(torch.full((dim_norm,), init_var, dtype=dtype))
+        self.weight = bmt.DistributedParameter(
+            torch.full((dim_norm,), init_var, dtype=dtype)
+        )
 
     def forward(self, x: torch.Tensor):
         """

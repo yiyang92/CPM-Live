@@ -5,14 +5,21 @@ from cpm_live.tokenizers import CPMAntPlusTokenizer
 import torch
 import argparse
 
+
 def get_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--use-bminf", default=False, action="store_true",
-                       help="Whether to use BMInf")
-    parser.add_argument("--memory-limit", type=int, default=12,
-                        help="GPU Memory limit, in GB")
+    parser.add_argument(
+        "--use-bminf",
+        default=False,
+        action="store_true",
+        help="Whether to use BMInf",
+    )
+    parser.add_argument(
+        "--memory-limit", type=int, default=12, help="GPU Memory limit, in GB"
+    )
     args = parser.parse_args()
     return args
+
 
 if __name__ == "__main__":
     args = get_args()
@@ -32,17 +39,20 @@ if __name__ == "__main__":
     model.load_state_dict(torch.load(ckpt_path))
     if args.use_bminf:
         import bminf
-        model = bminf.wrapper(model, quantization=False, memory_limit=args.memory_limit << 30)
+
+        model = bminf.wrapper(
+            model, quantization=False, memory_limit=args.memory_limit << 30
+        )
     else:
         model.cuda()
     tokenizer = CPMAntPlusTokenizer()
 
     # use beam search
     summarization = CPMAntPlusSummarization(
-        model=model,
-        tokenizer=tokenizer,
-        prompt_length=config.prompt_length
+        model=model, tokenizer=tokenizer, prompt_length=config.prompt_length
     )
-    inference_results = summarization.generate(texts, max_length=300, repetition_penalty=1.2)
+    inference_results = summarization.generate(
+        texts, max_length=300, repetition_penalty=1.2
+    )
     for res in inference_results:
         print(res)

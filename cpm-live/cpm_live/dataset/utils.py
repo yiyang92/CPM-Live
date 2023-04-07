@@ -63,7 +63,10 @@ def shuffle_dataset(
     ds = SimpleDataset(path_src, block_size=block_size)
     num_buckets = (ds.nbytes + bucket_size - 1) // bucket_size
 
-    tmp_files = [os.path.join(path_src, ".tmp.%s" % _random_string()) for _ in range(num_buckets)]
+    tmp_files = [
+        os.path.join(path_src, ".tmp.%s" % _random_string())
+        for _ in range(num_buckets)
+    ]
 
     try:
         # Step 1: write to bucket randomly
@@ -74,7 +77,9 @@ def shuffle_dataset(
                 iterator = tqdm(ds, desc="Shuffle step 1/2")
             for data in iterator:
                 bucket_id = int(random.random() * num_buckets)
-                pickle.dump(data, f_tmp[bucket_id])  # write into a random bucket
+                pickle.dump(
+                    data, f_tmp[bucket_id]
+                )  # write into a random bucket
         finally:
             # close all files
             for fp in f_tmp:
@@ -189,7 +194,6 @@ def mask_dataset(path: str, dbname: str, mask: bool = True):
 
 
 def merge_dataset(dst: str, src: str):
-
     meta_path_src = os.path.join(src, "meta.bin")
     meta_path_dst = os.path.join(dst, "meta.bin")
 

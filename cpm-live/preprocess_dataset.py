@@ -34,7 +34,9 @@ class Encoder(object):
                 else:
                     task = 2
 
-                piece = doc_ids[i : i + self.args.max_length - self.args.prompt_length - 2]
+                piece = doc_ids[
+                    i : i + self.args.max_length - self.args.prompt_length - 2
+                ]
 
                 if len(piece) < 32:
                     break
@@ -70,7 +72,10 @@ class Encoder(object):
                 + self.convert_to_ids(chinese)
                 + [Encoder.tokenizer.eos_id]
             )
-            if len(en_ids + zh_ids) > self.args.max_length - self.args.prompt_length:
+            if (
+                len(en_ids + zh_ids)
+                > self.args.max_length - self.args.prompt_length
+            ):
                 return None, 0
 
             if random.random() <= 0.5:
@@ -81,9 +86,17 @@ class Encoder(object):
                 task = 6
 
             if task == 5:
-                context = [task, 2, len(en_ids), 1, task, len(zh_ids), 2, task] + en_ids + zh_ids
+                context = (
+                    [task, 2, len(en_ids), 1, task, len(zh_ids), 2, task]
+                    + en_ids
+                    + zh_ids
+                )
             else:
-                context = [task, 2, len(zh_ids), 1, task, len(en_ids), 2, task] + zh_ids + en_ids
+                context = (
+                    [task, 2, len(zh_ids), 1, task, len(en_ids), 2, task]
+                    + zh_ids
+                    + en_ids
+                )
 
             contexts.append(context)
         elif task == "sum":
@@ -101,8 +114,13 @@ class Encoder(object):
                 + [Encoder.tokenizer.eos_id]
             )
             task = 3
-            context = [task, 2, len(pids), 1, task, len(aids), 2, task] + pids + aids
-            if len(pids + aids) > self.args.max_length - self.args.prompt_length:
+            context = (
+                [task, 2, len(pids), 1, task, len(aids), 2, task] + pids + aids
+            )
+            if (
+                len(pids + aids)
+                > self.args.max_length - self.args.prompt_length
+            ):
                 return None, 0
             contexts.append(context)
         elif task == "qa":
@@ -132,12 +150,27 @@ class Encoder(object):
 
             task = 4
             context = (
-                [task, 3, len(pids), 1, task, len(qids), 2, task, len(aids), 3, task]
+                [
+                    task,
+                    3,
+                    len(pids),
+                    1,
+                    task,
+                    len(qids),
+                    2,
+                    task,
+                    len(aids),
+                    3,
+                    task,
+                ]
                 + pids
                 + qids
                 + aids
             )
-            if len(pids + qids + aids) > self.args.max_length - self.args.prompt_length:
+            if (
+                len(pids + qids + aids)
+                > self.args.max_length - self.args.prompt_length
+            ):
                 return None, 0
             contexts.append(context)
         return contexts, len(line)
@@ -146,20 +179,37 @@ class Encoder(object):
 def get_args():
     parser = argparse.ArgumentParser()
     group = parser.add_argument_group(title="input data")
-    group.add_argument("--input", type=str, help="Path to input TXT", required=True)
-    group.add_argument("--max-length", type=int, default=1024, help="The max sequence length")
-    group.add_argument("--prompt-length", type=int, default=32, help="The prompt sequence length")
+    group.add_argument(
+        "--input", type=str, help="Path to input TXT", required=True
+    )
+    group.add_argument(
+        "--max-length", type=int, default=1024, help="The max sequence length"
+    )
+    group.add_argument(
+        "--prompt-length",
+        type=int,
+        default=32,
+        help="The prompt sequence length",
+    )
 
     group = parser.add_argument_group(title="output data")
     group.add_argument("--output_path", type=str, required=True)
-    group.add_argument("--output_name", type=str, help="Binary output file name", required=True)
+    group.add_argument(
+        "--output_name", type=str, help="Binary output file name", required=True
+    )
 
     group = parser.add_argument_group(title="runtime")
     group.add_argument(
-        "--workers", type=int, default=64, help="Number of worker processes to launch"
+        "--workers",
+        type=int,
+        default=64,
+        help="Number of worker processes to launch",
     )
     group.add_argument(
-        "--log_interval", type=int, default=10000, help="Interval between progress updates"
+        "--log_interval",
+        type=int,
+        default=10000,
+        help="Interval between progress updates",
     )
 
     args = parser.parse_args()
@@ -182,7 +232,6 @@ def main():
 
     print("Time to startup:", startup_end - startup_start)
     with build_dataset(args.output_path, args.output_name) as writer:
-
         for i, (pair_ids, bytes_processed) in enumerate(encoded_docs, start=1):
             if pair_ids is None:
                 continue

@@ -18,12 +18,16 @@ if __name__ == "__main__":
     config = CPMAntConfig.from_json_file(args.config_path)
     model = CPMAntPlusTorch(config=config)
     # insert LoRA
-    delta_model = LoraModel(backbone_model=model, modified_modules=["project_q", "project_v"])
+    delta_model = LoraModel(
+        backbone_model=model, modified_modules=["project_q", "project_v"]
+    )
     delta_model.freeze_module(exclude=["deltas"], set_state_dict=True)
     # load checkpoint
     model.load_state_dict(torch.load(args.model_path), strict=False)
     # load delta weights
-    model.load_state_dict(torch.load(os.path.join(args.output_path, "best.pt")), strict=False)
+    model.load_state_dict(
+        torch.load(os.path.join(args.output_path, "best.pt")), strict=False
+    )
     model.cuda()
     delta_model.log()
 
@@ -41,7 +45,9 @@ if __name__ == "__main__":
         for line in f:
             results.extend(
                 infer.generate(
-                    [json.loads(line)], max_length=args.infer_maxlen, cls_num=args.cls_num
+                    [json.loads(line)],
+                    max_length=args.infer_maxlen,
+                    cls_num=args.cls_num,
                 )
             )
 

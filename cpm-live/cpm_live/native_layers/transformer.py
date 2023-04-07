@@ -46,7 +46,6 @@ class Encoder(torch.nn.Module):
         dropout_p: Optional[float] = None,
         mask_modules: Optional[List[Tuple[bool, bool]]] = None,
     ):
-
         super().__init__()
 
         self.num_layers = num_layers
@@ -79,7 +78,9 @@ class Encoder(torch.nn.Module):
             ]
         )
 
-        self.output_layernorm = LayerNorm(dim_norm=dim_model, dtype=dtype, eps=eps)
+        self.output_layernorm = LayerNorm(
+            dim_norm=dim_model, dtype=dtype, eps=eps
+        )
 
     def forward(
         self,
@@ -87,7 +88,9 @@ class Encoder(torch.nn.Module):
         attention_mask: torch.Tensor,
         position_bias: torch.Tensor,
         use_cache: bool = False,
-        past_key_values: Optional[List[Tuple[torch.Tensor, torch.Tensor]]] = None,
+        past_key_values: Optional[
+            List[Tuple[torch.Tensor, torch.Tensor]]
+        ] = None,
     ):
         """
         Args:
@@ -100,7 +103,9 @@ class Encoder(torch.nn.Module):
 
         """  # noqa: E501
         if not use_cache:
-            hidden_states = self.layers(hidden_states, attention_mask, position_bias)
+            hidden_states = self.layers(
+                hidden_states, attention_mask, position_bias
+            )
             hidden_states = self.output_layernorm(hidden_states)
             return hidden_states
         else:
@@ -111,7 +116,9 @@ class Encoder(torch.nn.Module):
                         hidden_states,
                         attention_mask,
                         position_bias,
-                        past_key_value=past_key_values[i] if past_key_values else None,
+                        past_key_value=past_key_values[i]
+                        if past_key_values
+                        else None,
                         use_cache=use_cache,
                     )
                     if use_cache:

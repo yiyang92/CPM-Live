@@ -11,7 +11,9 @@ def convert_to_ids(tokenizer, text):
 class CPMAntPlusGeneration(CPMAntGeneration):
     def _convert_to_tensors(self, input_text, task_id=2):
         model_inputs = {}
-        input_ids = [self.tokenizer.bos_id] + convert_to_ids(self.tokenizer, input_text)
+        input_ids = [self.tokenizer.bos_id] + convert_to_ids(
+            self.tokenizer, input_text
+        )
 
         model_inputs["input"] = [
             x + self.prompt_length * task_id + self.tokenizer.vocab_size
@@ -21,10 +23,14 @@ class CPMAntPlusGeneration(CPMAntGeneration):
         model_inputs["position"] = list(range(len(model_inputs["input"])))
         model_inputs["span"] = [0] * len(model_inputs["input"])
         model_inputs["context"] = [True] * len(model_inputs["input"])
-        model_inputs["segment"] = [0] * self.prompt_length + [2] * len(input_ids)
+        model_inputs["segment"] = [0] * self.prompt_length + [2] * len(
+            input_ids
+        )
 
         for key in model_inputs:
-            model_inputs[key] = torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            model_inputs[key] = (
+                torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            )
 
         return model_inputs
 
@@ -44,7 +50,9 @@ class CPMAntPlusQuestionAnswering(CPMAntPlusBeamSearch):
         question_list = text_list[1:]
         # doc ids
         doc_ids = (
-            [self.tokenizer.bos_id] + convert_to_ids(self.tokenizer, doc) + [self.tokenizer.eos_id]
+            [self.tokenizer.bos_id]
+            + convert_to_ids(self.tokenizer, doc)
+            + [self.tokenizer.eos_id]
         )
         # question ids
         sep_id = 3
@@ -78,7 +86,9 @@ class CPMAntPlusQuestionAnswering(CPMAntPlusBeamSearch):
         )
 
         for key in model_inputs:
-            model_inputs[key] = torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            model_inputs[key] = (
+                torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            )
 
         return model_inputs
 
@@ -108,11 +118,15 @@ class CPMAntPlusSummarization(CPMAntPlusBeamSearch):
         model_inputs["span"] = [0] * len(model_inputs["input"])
         model_inputs["context"] = [True] * len(model_inputs["input"])
         model_inputs["segment"] = (
-            [0] * self.prompt_length + [1] * len(doc_ids) + [2] * len(answer_ids)
+            [0] * self.prompt_length
+            + [1] * len(doc_ids)
+            + [2] * len(answer_ids)
         )
 
         for key in model_inputs:
-            model_inputs[key] = torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            model_inputs[key] = (
+                torch.tensor(model_inputs[key]).int().unsqueeze(0)
+            )
 
         return model_inputs
 

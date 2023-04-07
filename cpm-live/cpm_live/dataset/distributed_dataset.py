@@ -157,7 +157,9 @@ class DistributedDataset:
             raise RuntimeError("Dataset meta file: block error (0)")
         for i in range(len(info) - 1):
             if info[i].block_end != info[i + 1].block_begin:
-                raise RuntimeError("Dataset meta file: block error (%d)" % (i + 1))
+                raise RuntimeError(
+                    "Dataset meta file: block error (%d)" % (i + 1)
+                )
 
         if old_len == len(info) and fast_skip:
             # fast skip
@@ -185,7 +187,9 @@ class DistributedDataset:
             )
             masks[self._rank :: self._world_size] = 0
             for v in info:
-                if v.mask or (not os.path.exists(self._get_file_path(v.file_name))):
+                if v.mask or (
+                    not os.path.exists(self._get_file_path(v.file_name))
+                ):
                     masks[v.block_begin : v.block_end] = _MASK_VALUE
             new_block_states = torch.zeros(
                 total_blocks, dtype=torch.int, device="cpu", requires_grad=False
@@ -210,7 +214,11 @@ class DistributedDataset:
 
     def _mask_file(self, f: FileInfo):
         masks = torch.full(
-            (self._total_blocks,), 0, dtype=torch.int, device="cpu", requires_grad=False
+            (self._total_blocks,),
+            0,
+            dtype=torch.int,
+            device="cpu",
+            requires_grad=False,
         )
         masks[f.block_begin : f.block_end] = _MASK_VALUE
         self._block_states = torch.maximum(self._block_states, masks)
@@ -240,14 +248,22 @@ class DistributedDataset:
         self._update_states()
         states = torch.where(
             self._block_states == _MASK_VALUE,
-            torch.zeros(self._total_blocks, dtype=torch.int, device="cpu", requires_grad=False),
+            torch.zeros(
+                self._total_blocks,
+                dtype=torch.int,
+                device="cpu",
+                requires_grad=False,
+            ),
             self._block_states,
         )
 
         if (self._fp is not None) and (self._curr_block is not None):
             curr_block = self._curr_block
             curr_f = self._get_block_file(curr_block)
-            inblock_offset = self._fp.tell() - (curr_block - curr_f.block_begin) * self._block_size
+            inblock_offset = (
+                self._fp.tell()
+                - (curr_block - curr_f.block_begin) * self._block_size
+            )
         else:
             curr_block = -1
             inblock_offset = 0
@@ -255,15 +271,21 @@ class DistributedDataset:
         with torch.no_grad():
             if self._world_size > 1:
                 gpu_states = states.cuda()
-                gpu_block = torch.tensor([curr_block, inblock_offset], dtype=torch.long).cuda()
-                global_states = bmt.distributed.all_reduce(gpu_states, op="sum").cpu()
+                gpu_block = torch.tensor(
+                    [curr_block, inblock_offset], dtype=torch.long
+                ).cuda()
+                global_states = bmt.distributed.all_reduce(
+                    gpu_states, op="sum"
+                ).cpu()
                 global_block = bmt.distributed.all_gather(gpu_block).cpu()
                 return {"states": global_states, "block": global_block}
             else:
                 return {
                     "states": states,
                     "block": torch.tensor(
-                        [[curr_block, inblock_offset]], dtype=torch.long, device="cpu"
+                        [[curr_block, inblock_offset]],
+                        dtype=torch.long,
+                        device="cpu",
                     ),
                 }
 
@@ -285,7 +307,8 @@ class DistributedDataset:
         if state["block"].size(0) != self._world_size:
             if strict:
                 raise ValueError(
-                    "world_size changed (%d -> %d)" % (state["block"].size(0), self._world_size)
+                    "world_size changed (%d -> %d)"
+                    % (state["block"].size(0), self._world_size)
                 )
             else:
                 self._curr_block = None
@@ -302,7 +325,8 @@ class DistributedDataset:
                 f_info = self._get_block_file(self._curr_block)
                 self._open_file(
                     f_info.file_name,
-                    (self._curr_block - f_info.block_begin) * self._block_size + inblock_offset,
+                    (self._curr_block - f_info.block_begin) * self._block_size
+                    + inblock_offset,
                 )
         # end
 
@@ -442,7 +466,9 @@ class DatasetWriter:
 
 
 class DatasetBuilder:
-    def __init__(self, path: str, dbname: str, block_size=_DEFAULT_BLOCK_SIZE) -> None:
+    def __init__(
+        self, path: str, dbname: str, block_size=_DEFAULT_BLOCK_SIZE
+    ) -> None:
         self._block_size = block_size
         self._path = path
         self._dbname = dbname
@@ -499,7 +525,9 @@ class DatasetBuilder:
             )
 
             # atomic write to meta file
-            random_fname = os.path.join(self._path, ".meta.bin.%s" % _random_string())
+            random_fname = os.path.join(
+                self._path, ".meta.bin.%s" % _random_string()
+            )
             with open(random_fname, "wb") as f:
                 pickle.dump(info, f)
             os.rename(random_fname, meta_path)
@@ -507,7 +535,9 @@ class DatasetBuilder:
         self._writer = None
 
 
-def build_dataset(path: str, dbname: str, block_size: int = _DEFAULT_BLOCK_SIZE):
+def build_dataset(
+    path: str, dbname: str, block_size: int = _DEFAULT_BLOCK_SIZE
+):
     """Open the dataset in write mode and returns a writer.
 
     Args:

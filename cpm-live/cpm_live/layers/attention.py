@@ -29,18 +29,25 @@ class Attention(bmt.DistributedModule):
         dtype: torch.dtype = torch.half,
         dropout_p: Optional[float] = None,
     ) -> None:
-
         super().__init__()
 
         self.dim_model = dim_model
         self.num_heads = num_heads
         self.dim_head = dim_head
 
-        self.project_q = Linear(self.dim_model, self.num_heads * self.dim_head, dtype=dtype)
-        self.project_k = Linear(self.dim_model, self.num_heads * self.dim_head, dtype=dtype)
-        self.project_v = Linear(self.dim_model, self.num_heads * self.dim_head, dtype=dtype)
+        self.project_q = Linear(
+            self.dim_model, self.num_heads * self.dim_head, dtype=dtype
+        )
+        self.project_k = Linear(
+            self.dim_model, self.num_heads * self.dim_head, dtype=dtype
+        )
+        self.project_v = Linear(
+            self.dim_model, self.num_heads * self.dim_head, dtype=dtype
+        )
 
-        self.attention_out = Linear(self.num_heads * self.dim_head, self.dim_model, dtype=dtype)
+        self.attention_out = Linear(
+            self.num_heads * self.dim_head, self.dim_model, dtype=dtype
+        )
 
         self.softmax = torch.nn.Softmax(dim=-1)
 
@@ -76,9 +83,15 @@ class Attention(bmt.DistributedModule):
         h_k = self.project_k(hidden_kv)
         h_v = self.project_v(hidden_kv)
 
-        h_q = h_q.view(batch_size, len_q, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
-        h_k = h_k.view(batch_size, len_k, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
-        h_v = h_v.view(batch_size, len_k, self.num_heads, self.dim_head).permute(0, 2, 1, 3)
+        h_q = h_q.view(
+            batch_size, len_q, self.num_heads, self.dim_head
+        ).permute(0, 2, 1, 3)
+        h_k = h_k.view(
+            batch_size, len_k, self.num_heads, self.dim_head
+        ).permute(0, 2, 1, 3)
+        h_v = h_v.view(
+            batch_size, len_k, self.num_heads, self.dim_head
+        ).permute(0, 2, 1, 3)
 
         if past_kv is not None:
             h_k = torch.cat([past_kv[0], h_k], dim=-2)
@@ -86,12 +99,16 @@ class Attention(bmt.DistributedModule):
             len_k = h_k.size(-2)
 
         # (b, n_h, len_q, d_h) @ (b, n_h, d_h, len_k) -> (b, n_h, len_q, len_k)
-        score = torch.matmul(h_q, h_k.transpose(-1, -2)) / math.sqrt(self.dim_head)
+        score = torch.matmul(h_q, h_k.transpose(-1, -2)) / math.sqrt(
+            self.dim_head
+        )
         score = score + position_bias
         score = torch.masked_fill(
             score,
             attention_mask.view(batch_size, 1, len_q, len_k) == False,
-            torch.scalar_tensor(float("-inf"), device=score.device, dtype=score.dtype),
+            torch.scalar_tensor(
+                float("-inf"), device=score.device, dtype=score.dtype
+            ),
         )
 
         score = self.softmax(score)
@@ -108,8 +125,12 @@ class Attention(bmt.DistributedModule):
         # (b, n_h, len_q, len_k) @ (b, n_h, len_k, d_h) -> (b, n_h, len_q, d_h)
         score = torch.matmul(score, h_v)
 
-        score = score.view(batch_size, self.num_heads, len_q, self.dim_head).permute(0, 2, 1, 3)
-        score = score.contiguous().view(batch_size, len_q, self.num_heads * self.dim_head)
+        score = score.view(
+            batch_size, self.num_heads, len_q, self.dim_head
+        ).permute(0, 2, 1, 3)
+        score = score.contiguous().view(
+            batch_size, len_q, self.num_heads * self.dim_head
+        )
 
         score = self.attention_out(score)
         if use_cache:

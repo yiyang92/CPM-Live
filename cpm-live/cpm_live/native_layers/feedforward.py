@@ -81,7 +81,6 @@ class FeedForward(torch.nn.Module):
         dtype=torch.half,
         dropout_p: Optional[float] = None,
     ):
-
         super().__init__()
 
         self.w_in = DenseGatedACT(
